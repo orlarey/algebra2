@@ -1,5 +1,7 @@
 # Algebra Framework
 
+[![CI](https://github.com/username/algebra/workflows/CI/badge.svg)](https://github.com/username/algebra/actions)
+
 A C++17 framework demonstrating the algebraic approach to expression representation and evaluation.
 
 ## Philosophy
