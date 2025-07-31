@@ -1,0 +1,86 @@
+# Build directories
+build/
+bin/
+out/
+
+# Claude AI settings
+.claude/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+*.cmake
+
+# Compiled executables
+main
+test_tree
+test_hashcons
+test_abs
+test_string
+test_generic
+*.exe
+*.out
+
+# Object files
+*.o
+*.obj
+
+# Static libraries
+*.a
+*.lib
+
+# Shared libraries
+*.so
+*.dylib
+*.dll
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# IDE files
+.vscode/
+.vs/
+*.vcxproj*
+*.user
+*.suo
+*.sln
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Testing
+Testing/
+*.gcda
+*.gcno
+*.gcov
+
+# Temporary files
+*~
+*.swp
+*.swo
+*.tmp
+
+# Package managers
+conan/
+vcpkg/
