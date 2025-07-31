@@ -1,6 +1,6 @@
 # Algebra Framework
 
-[![CI](https://github.com/username/algebra/workflows/CI/badge.svg)](https://github.com/username/algebra/actions)
+[![CI](https://github.com/orlarey/algebra2/workflows/CI/badge.svg)](https://github.com/orlarey/algebra2/actions)
 
 A C++17 framework demonstrating the algebraic approach to expression representation and evaluation.
 
