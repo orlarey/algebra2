@@ -38,25 +38,37 @@ int main() {
     
     std::cout << "Second expression pointer: " << expr2.get() << std::endl;
     
+    // Build third expression by evaluating first expression with TreeAlgebra itself
+    std::cout << "\nEvaluating first expression with TreeAlgebra (recursive)..." << std::endl;
+    auto expr3 = (*expr1)(treeAlg);
+    std::cout << "Third expression pointer: " << expr3.get() << std::endl;
+    
     // Verify hash-consing works
     std::cout << "\n=== Hash-Consing Verification ===" << std::endl;
-    std::cout << "Pointers are identical: " << (expr1.get() == expr2.get() ? "YES ✓" : "NO ✗") << std::endl;
+    std::cout << "expr1 == expr2: " << (expr1.get() == expr2.get() ? "YES ✓" : "NO ✗") << std::endl;
+    std::cout << "expr1 == expr3: " << (expr1.get() == expr3.get() ? "YES ✓" : "NO ✗") << std::endl;
+    std::cout << "expr2 == expr3: " << (expr2.get() == expr3.get() ? "YES ✓" : "NO ✗") << std::endl;
+    std::cout << "All three pointers identical: " << (expr1.get() == expr2.get() && expr2.get() == expr3.get() ? "YES ✓" : "NO ✗") << std::endl;
     
     // Evaluate with DoubleAlgebra
     std::cout << "\n=== Numerical Evaluation ===" << std::endl;
     double result1 = (*expr1)(doubleAlg);
     double result2 = (*expr2)(doubleAlg);
+    double result3 = (*expr3)(doubleAlg);
     std::cout << "expr1 result: " << result1 << std::endl;
     std::cout << "expr2 result: " << result2 << std::endl;
-    std::cout << "Results are equal: " << (result1 == result2 ? "YES ✓" : "NO ✗") << std::endl;
+    std::cout << "expr3 result: " << result3 << std::endl;
+    std::cout << "All results are equal: " << (result1 == result2 && result2 == result3 ? "YES ✓" : "NO ✗") << std::endl;
     
     // Generate string representation with StringAlgebra
     std::cout << "\n=== String Representation ===" << std::endl;
     auto str1 = (*expr1)(stringAlg);
     auto str2 = (*expr2)(stringAlg);
+    auto str3 = (*expr3)(stringAlg);
     std::cout << "expr1 string: " << str1.first << std::endl;
     std::cout << "expr2 string: " << str2.first << std::endl;
-    std::cout << "String representations are equal: " << (str1.first == str2.first ? "YES ✓" : "NO ✗") << std::endl;
+    std::cout << "expr3 string: " << str3.first << std::endl;
+    std::cout << "All string representations are equal: " << (str1.first == str2.first && str2.first == str3.first ? "YES ✓" : "NO ✗") << std::endl;
     
     // Manual calculation verification
     std::cout << "\n=== Manual Verification ===" << std::endl;
