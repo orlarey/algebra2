@@ -2,18 +2,65 @@
 
 [![CI](https://github.com/orlarey/algebra2/workflows/CI/badge.svg)](https://github.com/orlarey/algebra2/actions)
 
-A C++17 framework demonstrating the algebraic approach to expression representation and evaluation.
+A C++17 framework demonstrating the algebraic approach to expression
+representation and evaluation.
 
 ## Philosophy
 
-This project implements a generic algebraic framework where expressions are represented as abstract syntax trees and evaluated through different "algebras" - implementations that define how operations should be performed on specific data types.
+This project implements a generic algebraic framework where expressions are
+represented as abstract syntax trees and evaluated through different
+"algebras" - implementations that define how operations should be performed
+on specific data types.
+
+### What is an Algebra?
+
+In this context, an **algebra** is a mathematical structure that defines a
+set of operations and their behavior on a particular data type. More
+formally, an algebra consists of:
+
+- A **carrier set** (the data type T)
+- A set of **operations** (num, add, sub, mul, div, abs)
+- **Laws** governing how these operations behave
+
+This approach is inspired by **universal algebra** and **abstract algebra**,
+where the same algebraic structure can be interpreted in multiple ways. For
+example, the operation "add" might mean:
+
+- Numerical addition for `DoubleAlgebra`
+- String concatenation with "+" for `StringAlgebra`
+- Tree node construction for `TreeAlgebra`
+
+The key insight is that by abstracting the operations from their specific
+implementations, we can write generic algorithms that work across different
+interpretations of the same algebraic structure.
+
+**Theoretical Foundation:**
+
+In the terminology of Goguen et al., our implementation follows the initial
+algebra approach:
+
+- **TreeAlgebra** serves as the **initial algebra** - it represents pure
+  syntactic structure without semantic interpretation
+- **DoubleAlgebra**, **StringAlgebra**, etc. are **semantic algebras** - they
+  provide concrete interpretations of the abstract operations
+- The evaluation `(*expr)(algebra)` implements the unique homomorphism from
+  the initial algebra to each semantic algebra
+
+**References:**
+
+- Goguen, J. A., Thatcher, J. W., Wagner, E. G., & Wright, J. B. (1977).
+  "Initial Algebra Semantics and Continuous Algebras." *Journal of the ACM*,
+  24(1), 68-95.
+- Bird, R., & de Moor, O. (1997). *Algebra of Programming*. Prentice Hall.
 
 ### Core Concept
 
 The fundamental idea is to separate **structure** from **interpretation**:
 
-- **Structure**: Mathematical expressions are represented as trees using a generic `TreeAlgebra`
-- **Interpretation**: Different algebras can evaluate the same expression tree in different ways
+- **Structure**: Mathematical expressions are represented as trees using a
+  generic `TreeAlgebra`
+- **Interpretation**: Different algebras can evaluate the same expression tree
+  in different ways
 
 This separation allows the same mathematical expression to be:
 
@@ -71,14 +118,18 @@ public:
 
 ### Expression Trees
 
-The `Tree` class represents mathematical expressions as immutable abstract syntax trees. Each tree node contains either:
+The `Tree` class represents mathematical expressions as immutable abstract
+syntax trees. Each tree node contains either:
+
 - A numeric value (leaf node)
 - A unary operation and one child
 - A binary operation and two children
 
 ### Hash-Consing Optimization
 
-TreeAlgebra implements **hash-consing**, an optimization technique where structurally identical expressions share the same memory location. This provides:
+TreeAlgebra implements **hash-consing**, an optimization technique where
+structurally identical expressions share the same memory location. This
+provides:
 
 - **Memory efficiency**: No duplicate expressions in memory
 - **Fast equality testing**: Compare expressions by pointer equality (O(1))
@@ -94,26 +145,39 @@ assert(expr1.get() == expr2.get());  // Same pointer!
 ## Included Algebras
 
 ### DoubleAlgebra
-Performs standard numerical computation with IEEE 754 double-precision floating-point numbers.
+
+Performs standard numerical computation with IEEE 754 double-precision
+floating-point numbers.
 
 ### StringAlgebra
-Converts expressions to human-readable mathematical notation with intelligent parentheses placement based on operator precedence.
+
+Converts expressions to human-readable mathematical notation with intelligent
+parentheses placement based on operator precedence.
 
 ### PriorityAlgebra
-Computes operator precedence values for correct parentheses placement in string representations.
+
+Computes operator precedence values for correct parentheses placement in
+string representations.
 
 ## Key Features
 
 ### Type Safety
-The generic algebra interface ensures that all algebras implement the required operations. Adding a new operation to the base interface automatically requires all derived algebras to implement it.
+
+The generic algebra interface ensures that all algebras implement the required
+operations. Adding a new operation to the base interface automatically
+requires all derived algebras to implement it.
 
 ### Extensibility
-New algebras can be easily added by inheriting from `Algebra<T>` and implementing the required methods. Examples could include:
+
+New algebras can be easily added by inheriting from `Algebra<T>` and
+implementing the required methods. Examples could include:
+
 - Symbolic differentiation algebra
 - Code generation algebra
 - LaTeX formatting algebra
 
 ### Performance
+
 - Hash-consing eliminates duplicate expressions
 - Header-only library with inline functions
 - Efficient dispatch through virtual function tables
@@ -142,7 +206,7 @@ ctest --verbose
 
 ## Project Structure
 
-```
+```txt
 algebra/
 ├── algebra/           # Header-only library
 │   ├── Algebra.hh            # Base algebra interface
@@ -159,18 +223,31 @@ algebra/
 
 This framework demonstrates several important design patterns:
 
-- **Visitor Pattern**: The `operator()` method allows different algebras to "visit" and process expression trees
-- **Strategy Pattern**: Different algebras represent different strategies for processing expressions  
-- **Template Method Pattern**: The base `Algebra` class provides generic dispatch methods
-- **Flyweight Pattern**: Hash-consing implements the flyweight pattern for memory efficiency
+- **Visitor Pattern**: The `operator()` method allows different algebras to
+  "visit" and process expression trees
+- **Strategy Pattern**: Different algebras represent different strategies for
+  processing expressions
+- **Template Method Pattern**: The base `Algebra` class provides generic
+  dispatch methods
+- **Flyweight Pattern**: Hash-consing implements the flyweight pattern for
+  memory efficiency
 
 ## Educational Value
 
 This project illustrates advanced C++ concepts including:
+
 - Template metaprogramming
 - Virtual function dispatch optimization
 - Memory management with shared_ptr
 - Hash table implementation for structural sharing
 - Separation of concerns in software architecture
 
-The algebraic approach provides a clean, extensible foundation for building domain-specific languages, computer algebra systems, and expression evaluators.
+The algebraic approach provides a clean, extensible foundation for building
+domain-specific languages, computer algebra systems, and expression
+evaluators.
+
+## Development Notes
+
+This codebase was developed using **Claude Code** as a coding assistant. The
+complete development session transcript is available in
+[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md).
