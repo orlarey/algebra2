@@ -19,10 +19,11 @@ add_algebra_test(test_hashcons)
 add_algebra_test(test_abs)
 add_algebra_test(test_string)
 add_algebra_test(test_generic)
+add_algebra_test(test_variables)
 
 # Optional: Create a custom target to run all tests
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --verbose
-    DEPENDS test_tree test_hashcons test_abs test_string test_generic
+    DEPENDS test_tree test_hashcons test_abs test_string test_generic test_variables
     COMMENT "Running all algebra tests"
 )

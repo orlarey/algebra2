@@ -7,6 +7,9 @@
 #include <utility>
 
 class StringAlgebra : public Algebra<std::pair<std::string, int>> {
+private:
+    mutable int fVarCounter = 0;  // Counter for generating unique variable names
+    
 public:
     std::pair<std::string, int> num(double value) const override {
         std::ostringstream oss;
@@ -47,6 +50,19 @@ public:
     std::pair<std::string, int> abs(const std::pair<std::string, int>& a) const override {
         std::string result = "abs(" + a.first + ")";
         return {result, 100}; // highest priority (like a function call)
+    }
+    
+    std::pair<std::string, int> bottom() const override {
+        std::ostringstream oss;
+        oss << "x" << (++fVarCounter);  // Generate unique variable name
+        return {oss.str(), 100};  // Variables have highest priority
+    }
+    
+    bool isEquivalent(const std::pair<std::string, int>& a, 
+                      const std::pair<std::string, int>& b) const override {
+        // For symbolic algebra, we trust TreeAlgebra's fixpoint algorithm
+        // and always accept equivalence (could be more sophisticated)
+        return true;
     }
 };
 

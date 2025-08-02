@@ -428,13 +428,66 @@ This flexibility allows each algebra to define what "reaching a fixpoint" means 
 
 **Note for implementation**: This is why we have `isFixpoint(value, varIndex)` rather than testing equality directly.
 
+## Q16: Implementation Progress Log
+
+**Context**: Documenting the step-by-step implementation of the fixpoint algorithm.
+
+### Phase 1: Interface and Basic Implementation ✅
+
+**Step 1: Extended base Algebra interface**
+- Added `virtual T bottom() const = 0;`
+- Added `virtual bool isEquivalent(const T& a, const T& b) const = 0;`
+- Rejected initial `isFixpoint(value, varIndex)` approach to maintain algebra abstraction
+
+**Step 2: Implemented fixpoint methods in concrete algebras**
+- **DoubleAlgebra**: `bottom() = 0.0`, `isEquivalent() = (a == b)`
+- **StringAlgebra**: `bottom()` generates unique names "x1", "x2", etc., `isEquivalent()` returns `true` (trusts TreeAlgebra)
+- **TreeAlgebra**: `bottom()` creates fresh variables, `isEquivalent()` returns `true` (TODO: alpha-equivalence)
+- **Removed PriorityAlgebra**: Unused in codebase
+
+**Step 3: Added evaluation state structures**
+```cpp
+template<typename T>
+struct SCCFrame {
+    std::set<Tree*> scc;                      // Variables in this SCC
+    std::map<Tree*, T> hypotheticalMemo;      // Hypothetical memoization
+};
+
+template<typename T>
+struct EvaluationState {
+    std::vector<SCCFrame<T>> sccStack;        // Stack of SCCs
+    std::map<Tree*, T> variableValues;        // Current variable values
+    std::map<Tree*, T> definitiveMemo;        // Definitive memoization
+    
+    std::optional<size_t> findSCCPosition(Tree* var) const;
+    bool isOnStack(Tree* var) const;
+};
+```
+
+**Verification**: ✅ All existing tests pass, compilation successful
+
+### Phase 2: Core Algorithm Implementation (In Progress)
+
+**Next Step**: Implement `eval` method in TreeAlgebra following formal specification
+- Template method taking `Algebra<T>& algebra` parameter
+- Returns `(T, SCC, EvaluationState)` tuple
+- Handles all cases: definitive memo, hypothetical memo, constants, operations, variables
+
+### Phase 3: Testing and Validation (Pending)
+
+**Test Cases to Implement**:
+- Simple recursive variables: `var(0) = 1 + var(0)`
+- Mutually recursive: `var(0) = 1 + var(1), var(1) = 2 * var(0)`
+- Alpha-equivalence verification
+- Convergence vs. divergence cases
+
 ## Next Steps
 
-1. Implement `bottom()` and `isFixpoint()` in the base Algebra class
-2. Update TreeAlgebra to use these methods for fixpoint computation
-3. Implement these methods in each concrete algebra
-4. Test with examples like factorial, Fibonacci, infinite lists
-5. Verify that passing a recursive tree to TreeAlgebra produces an alpha-equivalent result
+1. ✅ Implement `bottom()` and `isEquivalent()` in all algebras
+2. ✅ Add evaluation state structures (SCCFrame, EvaluationState)
+3. 🔄 Implement core `eval` method with fixpoint computation
+4. ⏳ Test with recursive examples
+5. ⏳ Verify alpha-equivalence property
 
 ---
 

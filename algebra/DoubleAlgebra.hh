@@ -29,6 +29,14 @@ public:
     double abs(const double& a) const override {
         return std::abs(a);
     }
+    
+    double bottom() const override {
+        return 0.0;  // Use 0.0 as bottom value for numerical computation
+    }
+    
+    bool isEquivalent(const double& a, const double& b) const override {
+        return a == b;  // Simple equality for doubles (could add tolerance)
+    }
 };
 
 #endif

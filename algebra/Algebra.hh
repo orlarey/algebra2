@@ -55,6 +55,10 @@ public:
     virtual T mul(const T& a, const T& b) const = 0;
     virtual T div(const T& a, const T& b) const = 0;
     virtual T abs(const T& a) const = 0;
+    
+    // Fixpoint computation methods
+    virtual T bottom() const = 0;
+    virtual bool isEquivalent(const T& a, const T& b) const = 0;
 };
 
 #endif
