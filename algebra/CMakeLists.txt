@@ -14,5 +14,4 @@ target_sources(algebra INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/TreeAlgebra.hh>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/DoubleAlgebra.hh>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/StringAlgebra.hh>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/PriorityAlgebra.hh>
 )

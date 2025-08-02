@@ -468,10 +468,62 @@ struct EvaluationState {
 
 ### Phase 2: Core Algorithm Implementation (In Progress)
 
-**Next Step**: Implement `eval` method in TreeAlgebra following formal specification
-- Template method taking `Algebra<T>& algebra` parameter
-- Returns `(T, SCC, EvaluationState)` tuple
-- Handles all cases: definitive memo, hypothetical memo, constants, operations, variables
+**Design Decision: Functional vs. Imperative State Management**
+
+We chose the **imperative approach** with mutable state references:
+- **Performance**: In-place modification, no copying of large structures
+- **Simplicity**: More idiomatic C++, closer to typical algorithms
+- **Memory efficiency**: Single state instance in memory
+- **Natural fit**: Algorithm is inherently stateful (stack, memoization)
+
+Rejected functional approach (immutable state) due to performance overhead and complexity.
+
+**Auxiliary Functions Implementation** ✅
+
+Implemented all auxiliary functions with imperative (mutable state) approach:
+- `memoize()`: Cache results based on dependencies
+- `checkDefinitiveMemo()`, `checkHypotheticalMemo()`: Check cached values
+- `merge()`: Merge SCCs when cycles detected
+- `promote()`: Move SCC from hypothetical to definitive
+- `clean()`: Clean hypothetical memo keeping only variables
+- Helper functions: `getDefinition()`, `hasTopSCC()`
+
+**API Design for eval() method**
+
+**Goal**: Simple API `eval(tree, algebra) -> T` hiding complexity
+
+**State Management Decision**: 
+- **Permanent state**: `thread_local std::map<Tree*, T> definitiveMemo` (persists between calls)
+- **Temporary state**: `TemporaryState<T>` struct (created per call)
+  - `sccStack`: Pile of SCCs being computed
+  - `currentValues`: Variable values during fixpoint computation
+
+**Final API**:
+```cpp
+template<typename T>
+struct Hypotheses {
+    std::vector<SCCFrame<T>> sccStack;
+    std::map<Tree*, T> hypotheticalValues;
+    
+    std::optional<size_t> findSCCPosition(Tree* var) const;
+    bool isOnStack(Tree* var) const;
+};
+
+template<typename T>
+T eval(const std::shared_ptr<Tree>& tree, const Algebra<T>& algebra) const {
+    static thread_local std::map<Tree*, T> definitiveMemo;  // Definitive facts
+    Hypotheses<T> hypotheses;                               // Current hypotheses
+    return evalInternal(tree, definitiveMemo, hypotheses, algebra);
+}
+```
+
+**Rationale**: 
+- Variables are trees → covered by `definitiveMemo`, no separate variable storage needed
+- No `PermanentState` struct → direct `thread_local` map simpler
+- **Conceptual clarity**: `definitiveMemo` (permanent facts) vs. `Hypotheses` (assumptions being tested)
+- Clean separation: proven results vs. conjectures under verification
+
+**Next Step**: Implement `evalInternal()` method following formal specification
 
 ### Phase 3: Testing and Validation (Pending)
 
@@ -481,14 +533,167 @@ struct EvaluationState {
 - Alpha-equivalence verification
 - Convergence vs. divergence cases
 
-## Next Steps
+## Q17: Final Implementation Status
 
-1. ✅ Implement `bottom()` and `isEquivalent()` in all algebras
-2. ✅ Add evaluation state structures (SCCFrame, EvaluationState)
-3. 🔄 Implement core `eval` method with fixpoint computation
-4. ⏳ Test with recursive examples
-5. ⏳ Verify alpha-equivalence property
+**Context**: Implementation completed and tested.
+
+### Key Implementation Decisions
+
+1. **Cache Management**: The definitive memoization cache is `static thread_local` to persist across calls within a thread. For testing, we clear it at the beginning of each `eval()` call to avoid interference between tests.
+
+2. **Simple Variable Optimization**: When a variable definition has no dependencies (non-recursive), we promote it directly to definitive memoization without going through fixpoint iteration.
+
+3. **Debug Support**: Added conditional compilation (`if constexpr`) for debug output specific to certain types, avoiding compilation errors for types that don't support `operator<<`.
+
+### Testing Results
+
+**Non-recursive variables**: ✅ Working correctly
+- Simple variables (var(0) = 42) evaluate correctly
+- Complex expressions without recursion work as expected
+
+**Recursive variables**: ✅ Working with caveats
+- Simple recursion (var(0) = var(0) + 1) produces symbolic representations
+- Mutual recursion correctly identifies SCCs and evaluates them together
+- StringAlgebra produces new variable names for each `bottom()` call, which is semantically correct but may not be the most readable output
+
+### Known Issues and Future Improvements
+
+1. **StringAlgebra naming**: Currently generates fresh names (x1, x2, ...) for each `bottom()` call. Could be improved to reuse variable names within the same SCC.
+
+2. **Performance**: The cache is cleared on each `eval()` call for correctness. In production, maintaining the cache across calls would improve performance for repeated evaluations.
+
+3. **Alpha-equivalence**: The `isEquivalent()` method in TreeAlgebra currently returns `true` always. A proper implementation of alpha-equivalence checking would be beneficial.
+
+4. **Convergence for DoubleAlgebra**: Currently uses simple equality. Could add epsilon-based comparison for numerical stability.
+
+### API Achievement
+
+Successfully achieved the simple API goal:
+```cpp
+template<typename T>
+T eval(const std::shared_ptr<Tree>& tree, const Algebra<T>& algebra) const
+```
+
+The complexity of fixpoint computation, SCC detection, and memoization is completely hidden from the user.
+
+## Implementation Summary
+
+### Core Components Implemented
+
+1. **Algebra Interface Extensions**:
+   - `bottom()`: Creates initial values for fixpoint iteration
+   - `isEquivalent()`: Tests convergence
+
+2. **State Management**:
+   - `Hypotheses<T>`: Temporary state for testing fixpoint hypotheses
+   - `SCCFrame<T>`: Represents a strongly connected component
+   - Definitive memoization: Permanent cache for proven results
+
+3. **Evaluation Algorithm**:
+   - `eval()`: Public API
+   - `evalInternal()`: Core recursive evaluation with dependency tracking
+   - `evalVar()`: Variable-specific evaluation with SCC detection
+   - `fixpoint()`: Orchestrates fixpoint computation for an SCC
+   - `iterate()`: Iterates until convergence
+
+4. **Auxiliary Functions**:
+   - `memoize()`: Smart caching based on dependencies
+   - `merge()`: Merges SCCs when cycles are detected
+   - `promote()`: Moves hypothetical results to definitive
+   - `clean()`: Removes non-variable entries from hypothetical cache
+
+### Test Coverage
+
+- ✅ Simple arithmetic expressions
+- ✅ Non-recursive variables
+- ✅ Variables in complex expressions
+- ✅ Simple recursive variables
+- ✅ Mutually recursive variables
+- ✅ Multiple algebra interpretations (Double, String)
+
+## Conclusion
+
+The fixpoint computation implementation is complete and functional. The system correctly:
+1. Detects and handles recursive variable definitions
+2. Identifies strongly connected components dynamically
+3. Computes fixpoints through iteration
+4. Maintains separation between proven facts and hypotheses
+5. Provides a clean, simple API that hides all complexity
+
+The implementation successfully demonstrates the theoretical concepts of initial algebra semantics, fixpoint computation, and the elegance of separating structure (trees) from interpretation (algebras).
+
+## Q18: Amélioration de la représentation des équivalences pour StringAlgebra
+
+**Context**: Discussion sur l'amélioration de la représentation des systèmes récursifs dans StringAlgebra.
+
+### Problème identifié
+
+Avec l'implémentation actuelle, StringAlgebra produit des résultats comme `"2 + 5 * (x1 + 3)"` pour des systèmes récursifs, ce qui :
+- Cache la structure récursive originale
+- Utilise des noms de variables générés qui changent à chaque évaluation
+- Ne montre pas explicitement le système d'équations sous-jacent
+
+### Représentation souhaitée
+
+Pour le système :
+```
+var(0) = var(1) + 3
+var(1) = 2 + 5 * var(0)
+```
+
+Au lieu de : `"2 + 5 * (x1 + 3)"`
+On voudrait : `"x0 = 2 + 5 * (x1 = x0 + 3)"`
+
+Cette notation :
+- Préserve la structure récursive visible
+- Montre explicitement les équivalences/définitions
+- Reste cohérente avec les noms générés par StringAlgebra
+
+### Approche proposée : Méthode `equation()`
+
+**Idée** : TreeAlgebra demande à StringAlgebra de représenter une équivalence explicitement.
+
+**Extension de l'interface Algebra** :
+```cpp
+// Nouvelle méthode dans Algebra.hh
+virtual T equation(const std::string& varName, const T& definition) const = 0;
+```
+
+**Implémentation StringAlgebra** :
+```cpp
+std::string equation(const std::string& varName, const std::string& definition) const override {
+    return varName + " = " + definition;
+}
+```
+
+**Utilisation par TreeAlgebra** :
+- Détecter quand un résultat représente une équivalence plutôt qu'une valeur simple
+- Appeler `algebra.equation("x0", "2 + 5 * (x1 = x0 + 3)")`
+- Permettre la composition d'équations imbriquées
+
+### Avantages de cette approche
+
+1. **Séparation des préoccupations** : TreeAlgebra gère la logique récursive, StringAlgebra gère uniquement la représentation
+2. **Extensibilité** : Autres algèbres peuvent implémenter `equation()` selon leurs besoins
+3. **Encapsulation préservée** : StringAlgebra n'a pas besoin de connaître les concepts de variables TreeAlgebra
+4. **Cohérence architecturale** : Respecte le principe que chaque algèbre définit sa propre représentation
+
+### Défis d'implémentation
+
+- TreeAlgebra doit détecter quand il construit une équivalence vs. une valeur simple
+- Gestion de la composition d'équations imbriquées
+- Maintien de la cohérence des noms de variables dans les équations complexes
+
+### Alternative considérée mais rejetée
+
+Une approche où StringAlgebra maintiendrait une table de définitions interne a été considérée mais rejetée car elle violerait l'encapsulation et compliquerait l'interface.
+
+### Statut
+
+**Proposition documentée** - Non implémentée dans la version actuelle, mais architecture définie pour une future extension.
+
+Cette amélioration permettrait d'obtenir des représentations beaucoup plus expressives des systèmes récursifs tout en maintenant l'élégance architecturale du framework.
 
 ---
 
-*This log will be updated as the implementation progresses.*
+*Implementation completed successfully. Future enhancement for equation representation documented.*
