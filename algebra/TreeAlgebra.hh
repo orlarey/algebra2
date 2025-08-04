@@ -1,7 +1,8 @@
 #ifndef TREE_ALGEBRA_HH
 #define TREE_ALGEBRA_HH
 
-#include "Algebra.hh"
+#include "InitialAlgebra.hh"
+#include "SemanticAlgebra.hh"
 #include <memory>
 #include <variant>
 #include <tuple>
@@ -15,6 +16,191 @@
 #include <iostream>
 #include <type_traits>
 
+/**
+ * TreeAlgebra - The Canonical Initial Algebra Implementation
+ * =========================================================
+ * 
+ * MATHEMATICAL FOUNDATION
+ * -----------------------
+ * TreeAlgebra is the concrete realization of the initial algebra concept,
+ * providing the fundamental bridge between syntax (tree structures) and 
+ * semantics (computational interpretations). It embodies the mathematical
+ * principle that "every computation has a unique syntactic representation."
+ * 
+ * FORMAL STRUCTURE
+ * ----------------
+ * TreeAlgebra = (𝒯, {f_𝒯}_{f∈Σ}, var, define, eval, ≡_α)
+ * 
+ * Where:
+ * - 𝒯: Set of all possible expression trees (the term algebra)
+ * - {f_𝒯}: Tree-building operations (Add, Mul, Num, etc.)
+ * - var: Variable creation operation
+ * - define: Recursive definition binding
+ * - eval: Evaluation homomorphism to semantic algebras
+ * - ≡_α: Alpha-equivalence relation for recursive structures
+ * 
+ * KEY MATHEMATICAL PROPERTIES
+ * ---------------------------
+ * 
+ * **1. INITIALITY**
+ * For any algebra A, there exists a unique homomorphism h: 𝒯 → A
+ * This is implemented by the eval() method:
+ *   eval(f_𝒯(t₁,...,tₙ), A) = f_A(eval(t₁,A),...,eval(tₙ,A))
+ * 
+ * **2. COMPOSITIONALITY**
+ * The meaning of compound expressions depends only on their parts:
+ *   [[Add(e₁, e₂)]]_A = add_A([[e₁]]_A, [[e₂]]_A)
+ * 
+ * **3. HASH-CONSING (STRUCTURAL SHARING)**
+ * Implements maximal sharing principle:
+ *   ∀ t₁, t₂ ∈ 𝒯: structure(t₁) = structure(t₂) ⟹ t₁ = t₂ (pointer equality)
+ * 
+ * **4. RECURSIVE DEFINITIONS**
+ * Supports μ-recursion through variable binding:
+ *   x := F(x) corresponds to μx.F(x) in domain theory
+ * 
+ * CORE ALGORITHMS
+ * ---------------
+ * 
+ * **Hash-Consing Algorithm**:
+ *   intern(tree) = if tree ∈ table then table[tree] else table ∪= {tree}; tree
+ * 
+ * **Evaluation Algorithm** (depends on target algebra):
+ *   - InitialAlgebra → InitialAlgebra: identity (tree building)
+ *   - InitialAlgebra → SemanticAlgebra: fixpoint computation
+ * 
+ * **Alpha-Equivalence Algorithm**:
+ *   Determines when two recursive structures are "essentially the same"
+ *   up to variable renaming, crucial for optimization and canonicalization.
+ * 
+ * FIXPOINT COMPUTATION THEORY
+ * ---------------------------
+ * For recursive definitions x := F(x), TreeAlgebra implements
+ * Kleene's iteration method:
+ * 
+ * **Domain-Theoretic Foundation**:
+ *   fix(F) = ⊔_{n=0}^∞ F^n(⊥) where ⊔ is the least upper bound
+ * 
+ * **Practical Algorithm**:
+ *   1. Initialize: x₀ = ⊥ (bottom element)
+ *   2. Iterate: xₙ₊₁ = eval(F(var→xₙ), semanticAlgebra)
+ *   3. Stop when: semanticAlgebra.isConverged(xₙ, xₙ₊₁)
+ * 
+ * **Strongly Connected Components (SCCs)**:
+ *   Handle mutually recursive definitions x₁ := F₁(x₁,x₂), x₂ := F₂(x₁,x₂)
+ *   by computing fixpoints simultaneously for entire SCCs.
+ * 
+ * TREE STRUCTURE AND VARIANTS
+ * ---------------------------
+ * Trees are implemented as discriminated unions (std::variant):
+ * 
+ * ```cpp
+ * Tree = Num(double)                    // Numeric constants
+ *      | Unary(UnaryOp, Tree)          // Unary operations  
+ *      | Binary(BinaryOp, Tree, Tree)  // Binary operations
+ *      | Var(int, Definition?)         // Variables with optional definitions
+ * ```
+ * 
+ * This structure directly mirrors the mathematical BNF grammar:
+ *   e ::= n | op₁(e) | op₂(e,e) | x
+ * 
+ * EVALUATION STRATEGIES
+ * ---------------------
+ * 
+ * **For Initial Algebras** (equation building):
+ * - TreeAlgebra → TreeAlgebra: identity (tree ↦ tree)
+ * - TreeAlgebra → Other Initial: build equivalent structure
+ * 
+ * **For Semantic Algebras** (computation):
+ * - Recursive variables: fixpoint iteration until convergence
+ * - Non-recursive: direct structural evaluation
+ * - Mixed: SCC analysis + appropriate strategy per component
+ * 
+ * ALPHA-EQUIVALENCE ALGORITHM
+ * ---------------------------
+ * Implements sophisticated equivalence checking for recursive structures:
+ * 
+ * **Mathematical Definition**:
+ *   T₁ ≡_α T₂ iff unfold(T₁) ≅ unfold(T₂) up to variable renaming
+ * 
+ * **Algorithm Features**:
+ * - Memoization for DAG structures (avoids infinite recursion)
+ * - Variable mapping consistency (bijective renaming)
+ * - Handles cycles through definition comparison
+ * - Optimized for hash-consed structures (pointer equality fast path)
+ * 
+ * APPLICATIONS AND USE CASES
+ * --------------------------
+ * 
+ * **Compiler Construction**:
+ * - Abstract syntax trees for programming languages
+ * - Expression optimization and canonicalization
+ * - Type inference and analysis
+ * 
+ * **Symbolic Mathematics**:
+ * - Computer algebra systems
+ * - Symbolic differentiation and integration
+ * - Expression simplification
+ * 
+ * **Scientific Computing**:
+ * - Automatic differentiation
+ * - Computational graphs for machine learning
+ * - Domain-specific languages for numerical methods
+ * 
+ * **Program Analysis**:
+ * - Static analysis frameworks
+ * - Model checking and verification  
+ * - Program transformation systems
+ * 
+ * PERFORMANCE CONSIDERATIONS
+ * --------------------------
+ * 
+ * **Hash-Consing Benefits**:
+ * - O(1) structural equality testing
+ * - Significant memory savings for repeated subexpressions
+ * - Fast hashing for memoization
+ * 
+ * **Fixpoint Iteration**:
+ * - Convergence depends on semantic algebra properties
+ * - SCC analysis minimizes recomputation
+ * - Early termination through isConverged() methods
+ * 
+ * **Alpha-Equivalence**:
+ * - Memoization prevents exponential blowup
+ * - Hash-consing enables pointer-equality optimization
+ * - DAG structure reduces work compared to tree traversal
+ * 
+ * REFERENCES
+ * ----------
+ * - Goguen, J.A. et al. (1977) "Initial Algebra Semantics and Continuous Algebras"
+ *   [Foundational theory for initial algebras and evaluation]
+ * 
+ * - Baader, F., Nipkow, T. (1998) "Term Rewriting and All That"
+ *   Cambridge University Press
+ *   [Comprehensive treatment of term structures and rewriting]
+ * 
+ * - Pierce, B.C. (2002) "Types and Programming Languages" 
+ *   MIT Press, Chapters 3-5
+ *   [Practical implementation of abstract syntax trees]
+ * 
+ * - Appel, A.W. (1998) "Modern Compiler Implementation in ML"
+ *   Cambridge University Press, Chapter 4
+ *   [Hash-consing and structural sharing techniques]
+ * 
+ * - Tarjan, R.E. (1972) "Depth-First Search and Linear Graph Algorithms"
+ *   SIAM Journal on Computing, 1(2), pp. 146-160
+ *   [SCC algorithm for handling mutual recursion]
+ */
+
+// Forward declaration to access operation types
+class Tree;
+
+// Type aliases for operations (using Tree as the concrete type for Algebra)
+using ConstantOp = Algebra<std::shared_ptr<Tree>>::ConstantOp;
+using VarOp = InitialAlgebra<std::shared_ptr<Tree>>::VarOp;
+using UnaryOp = Algebra<std::shared_ptr<Tree>>::UnaryOp;
+using BinaryOp = Algebra<std::shared_ptr<Tree>>::BinaryOp;
+
 class Tree {
 public:
     enum class NodeType { Num, Unary, Binary, Var };
@@ -23,17 +209,17 @@ private:
     
     NodeType fType;
     std::variant<
-        double,                                                              // For Num
+        std::pair<ConstantOp, double>,                                     // For Num (constants: real numbers, integers)
+        std::pair<VarOp, int>,                                             // For Var (variable index)
         std::pair<UnaryOp, std::shared_ptr<Tree>>,                         // For Unary
-        std::tuple<BinaryOp, std::shared_ptr<Tree>, std::shared_ptr<Tree>>, // For Binary
-        int                                                                  // For Var (index)
+        std::tuple<BinaryOp, std::shared_ptr<Tree>, std::shared_ptr<Tree>> // For Binary
     > fData;
     
     // Mutable field for variable definitions
     mutable std::shared_ptr<Tree> fDefinition;
     
     // Private constructors - only TreeAlgebra can create Trees
-    Tree(double value) : fType(NodeType::Num), fData(value) {}
+    Tree(double value) : fType(NodeType::Num), fData(std::make_pair(ConstantOp::Real, value)) {}
     
     Tree(UnaryOp op, std::shared_ptr<Tree> operand) 
         : fType(NodeType::Unary), fData(std::make_pair(op, operand)) {}
@@ -41,7 +227,7 @@ private:
     Tree(BinaryOp op, std::shared_ptr<Tree> left, std::shared_ptr<Tree> right) 
         : fType(NodeType::Binary), fData(std::make_tuple(op, left, right)) {}
     
-    Tree(int index) : fType(NodeType::Var), fData(index), fDefinition(nullptr) {}
+    Tree(int index) : fType(NodeType::Var), fData(std::make_pair(VarOp::Index, index)), fDefinition(nullptr) {}
     
     friend class TreeAlgebra;
     
@@ -50,7 +236,7 @@ public:
     NodeType getType() const { return fType; }
     
     double getValue() const { 
-        return std::get<double>(fData); 
+        return std::get<std::pair<ConstantOp, double>>(fData).second; 
     }
     
     UnaryOp getUnaryOp() const { 
@@ -74,7 +260,7 @@ public:
     }
     
     int getVarIndex() const {
-        return std::get<int>(fData);
+        return std::get<std::pair<VarOp, int>>(fData).second;
     }
     
     std::shared_ptr<Tree> getDefinition() const {
@@ -89,15 +275,17 @@ public:
     template<typename T>
     T operator()(const Algebra<T>& algebra) const {
         switch(fType) {
-            case NodeType::Num:
-                return algebra.num(std::get<double>(fData));
+            case NodeType::Num: {
+                auto& [constantOp, value] = std::get<std::pair<ConstantOp, double>>(fData);
+                return algebra.num(value);
+            }
             case NodeType::Unary: {
                 auto& [op, operand] = std::get<std::pair<UnaryOp, std::shared_ptr<Tree>>>(fData);
-                return algebra.unary(op, (*operand)(algebra));
+                return algebra.unary(static_cast<typename Algebra<T>::UnaryOp>(op), (*operand)(algebra));
             }
             case NodeType::Binary: {
                 auto& [op, left, right] = std::get<std::tuple<BinaryOp, std::shared_ptr<Tree>, std::shared_ptr<Tree>>>(fData);
-                return algebra.binary(op, (*left)(algebra), (*right)(algebra));
+                return algebra.binary(static_cast<typename Algebra<T>::BinaryOp>(op), (*left)(algebra), (*right)(algebra));
             }
             case NodeType::Var: {
                 if (fDefinition) {
@@ -201,7 +389,33 @@ struct Hypotheses {
     }
 };
 
-class TreeAlgebra : public Algebra<std::shared_ptr<Tree>> {
+// Alpha-equivalence structures and algorithms
+// 
+// Mathematical specification:
+// • 𝕍 = ensemble des variables  
+// • 𝕋 = ensemble des arbres (Trees)
+// • σ : 𝕍 → 𝕋 = environnement (définitions des variables)
+// • ρ : 𝕍 → 𝕍 = bijection de renommage
+//
+// alphaEquiv : 𝕋 × 𝕋 → 𝔹
+// Two trees T₁, T₂ are alpha-equivalent (T₁ ≡α T₂) if their infinite unfoldings 
+// are structurally identical up to variable renaming.
+
+struct AlphaEquivContext {
+    // Memo = Map⟨(𝕋*, 𝕋*), 𝔹⟩ - Cache des comparaisons déjà faites
+    mutable std::map<std::pair<Tree*, Tree*>, bool> memo;
+    
+    // VarMap = Map⟨𝕍*, 𝕍*⟩ - Bijection entre variables
+    mutable std::map<Tree*, Tree*> varMapping;
+    
+    // Clear context for new comparison
+    void clear() {
+        memo.clear();
+        varMapping.clear();
+    }
+};
+
+class TreeAlgebra : public InitialAlgebra<std::shared_ptr<Tree>> {
 private:
     // Hash-consing table
     mutable std::unordered_set<std::shared_ptr<Tree>, TreeHash, TreeEqual> fTrees;
@@ -248,27 +462,37 @@ public:
         return intern(candidate);
     }
     
+    std::shared_ptr<Tree> mod(const std::shared_ptr<Tree>& a, const std::shared_ptr<Tree>& b) const override {
+        auto candidate = std::shared_ptr<Tree>(new Tree(BinaryOp::Mod, a, b));
+        return intern(candidate);
+    }
+    
     std::shared_ptr<Tree> abs(const std::shared_ptr<Tree>& a) const override {
         auto candidate = std::shared_ptr<Tree>(new Tree(UnaryOp::Abs, a));
         return intern(candidate);
     }
     
-    // Variable creation method
+    // InitialAlgebra methods
+    std::shared_ptr<Tree> var() const override {
+        // Create a fresh variable with a unique index
+        auto candidate = std::shared_ptr<Tree>(new Tree(++fVarCounter));
+        return intern(candidate);
+    }
+    
+    // Create a variable with a specific index (for backward compatibility)
     std::shared_ptr<Tree> var(int index) const {
         auto candidate = std::shared_ptr<Tree>(new Tree(index));
         return intern(candidate);
     }
     
-    // Fixpoint computation methods
-    std::shared_ptr<Tree> bottom() const override {
-        // Create a fresh variable for bottom
-        return var(++fVarCounter);
-    }
-    
-    bool isEquivalent(const std::shared_ptr<Tree>& a, const std::shared_ptr<Tree>& b) const override {
-        // TODO: Should implement alpha-equivalence testing
-        // For now, return true and trust the fixpoint algorithm
-        return true;
+    std::shared_ptr<Tree> define(const std::shared_ptr<Tree>& var, 
+                                  const std::shared_ptr<Tree>& def) const override {
+        // Associate a definition to a variable
+        if (var->getType() != Tree::NodeType::Var) {
+            throw std::runtime_error("Can only define variables");
+        }
+        var->setDefinition(def);
+        return var;
     }
     
     // Auxiliary functions for fixpoint evaluation
@@ -337,6 +561,14 @@ public:
             definitiveMemo[tree] = value;
         }
         
+        // Also promote final variable values from hypotheticalValues
+        // These contain the converged values from the last iteration
+        for (Tree* var : topFrame.scc) {
+            if (hypotheses.hypotheticalValues.count(var)) {
+                definitiveMemo[var] = hypotheses.hypotheticalValues[var];
+            }
+        }
+        
         // Pop the top SCC
         hypotheses.sccStack.pop_back();
     }
@@ -370,19 +602,52 @@ public:
     // Main evaluation method - public API
     template<typename T>
     T eval(const std::shared_ptr<Tree>& tree, const Algebra<T>& algebra) const {
-        static thread_local std::map<Tree*, T> definitiveMemo;  // Definitive facts
-        // For debugging: clear the cache at the beginning
-        // TODO: In production, we may want to keep the cache for performance
+        // Dispatch to appropriate algorithm based on algebra type
+        if (auto* initial = dynamic_cast<const InitialAlgebra<T>*>(&algebra)) {
+            return evalInitial(tree, *initial);
+        } else if (auto* semantic = dynamic_cast<const SemanticAlgebra<T>*>(&algebra)) {
+            return evalSemantic(tree, *semantic);
+        } else {
+            throw std::runtime_error("Unknown algebra type");
+        }
+    }
+    
+    // Evaluation for initial algebras (equation building)
+    template<typename T>
+    T evalInitial(const std::shared_ptr<Tree>& tree, const InitialAlgebra<T>& algebra) const {
+        // Special case: TreeAlgebra evaluating itself should preserve identity
+        if (dynamic_cast<const TreeAlgebra*>(&algebra) == this && std::is_same_v<T, std::shared_ptr<Tree>>) {
+            // Safe cast since we verified the types
+            return reinterpret_cast<const T&>(tree);
+        }
+        
+        // For other initial algebras, we build equations rather than iterate
+        // For now, use the existing algorithm (will be refined later)
+        static thread_local std::map<Tree*, T> definitiveMemo;
         definitiveMemo.clear();
         
-        Hypotheses<T> hypotheses;                               // Current hypotheses
+        Hypotheses<T> hypotheses;
         auto [result, deps] = evalInternal(tree, definitiveMemo, hypotheses, algebra);
-        
-        
         return result;
     }
     
-    // Internal evaluation method
+public:
+    
+    // Evaluation for semantic algebras (fixpoint iteration)  
+    template<typename T>
+    T evalSemantic(const std::shared_ptr<Tree>& tree, const SemanticAlgebra<T>& algebra) const {
+        // For semantic algebras, we need full fixpoint computation capability
+        // Use the same algorithm as initial algebras but with semantic convergence
+        static thread_local std::map<Tree*, T> definitiveMemo;
+        definitiveMemo.clear();
+        
+        Hypotheses<T> hypotheses;
+        auto [result, deps] = evalInternal(tree, definitiveMemo, hypotheses, algebra);
+        return result;
+    }
+    
+    
+    // Internal evaluation method (legacy, will be split later)
     template<typename T>
     std::pair<T, std::set<Tree*>> evalInternal(const std::shared_ptr<Tree>& tree, 
                                                std::map<Tree*, T>& definitiveMemo,
@@ -413,7 +678,7 @@ public:
             
             case Tree::NodeType::Unary: {
                 auto [operandValue, operandDeps] = evalInternal(tree->getOperand(), definitiveMemo, hypotheses, algebra);
-                T value = algebra.unary(tree->getUnaryOp(), operandValue);
+                T value = algebra.unary(static_cast<typename Algebra<T>::UnaryOp>(tree->getUnaryOp()), operandValue);
                 memoize(treePtr, value, operandDeps, definitiveMemo, hypotheses);
                 return {value, operandDeps};
             }
@@ -421,7 +686,7 @@ public:
             case Tree::NodeType::Binary: {
                 auto [leftValue, leftDeps] = evalInternal(tree->getLeft(), definitiveMemo, hypotheses, algebra);
                 auto [rightValue, rightDeps] = evalInternal(tree->getRight(), definitiveMemo, hypotheses, algebra);
-                T value = algebra.binary(tree->getBinaryOp(), leftValue, rightValue);
+                T value = algebra.binary(static_cast<typename Algebra<T>::BinaryOp>(tree->getBinaryOp()), leftValue, rightValue);
                 
                 std::set<Tree*> combinedDeps;
                 combinedDeps.insert(leftDeps.begin(), leftDeps.end());
@@ -458,9 +723,19 @@ public:
                 return {hypotheses.hypotheticalValues[var], hypotheses.sccStack.back().scc};
             } else {
                 // Initialize with bottom if not yet computed
-                T bottomValue = algebra.bottom();
-                hypotheses.hypotheticalValues[var] = bottomValue;
-                return {bottomValue, hypotheses.sccStack.back().scc};
+                // Only semantic algebras have bottom()
+                if (auto* semanticAlg = dynamic_cast<const SemanticAlgebra<T>*>(&algebra)) {
+                    T bottomValue = semanticAlg->bottom();
+                    hypotheses.hypotheticalValues[var] = bottomValue;
+                    return {bottomValue, hypotheses.sccStack.back().scc};
+                } else if (auto* initialAlg = dynamic_cast<const InitialAlgebra<T>*>(&algebra)) {
+                    // For initial algebras, use a fresh variable as "bottom"
+                    T varValue = initialAlg->var();
+                    hypotheses.hypotheticalValues[var] = varValue;
+                    return {varValue, hypotheses.sccStack.back().scc};
+                } else {
+                    throw std::runtime_error("Unknown algebra type in evalVar");
+                }
             }
         }
         
@@ -470,8 +745,15 @@ public:
         // Push new SCC on stack
         hypotheses.sccStack.emplace_back(newSCC);
         
-        // Initialize variable to bottom
-        T bottomValue = algebra.bottom();
+        // Initialize variable to bottom/var depending on algebra type
+        T bottomValue;
+        if (auto* semanticAlg = dynamic_cast<const SemanticAlgebra<T>*>(&algebra)) {
+            bottomValue = semanticAlg->bottom();
+        } else if (auto* initialAlg = dynamic_cast<const InitialAlgebra<T>*>(&algebra)) {
+            bottomValue = initialAlg->var();
+        } else {
+            throw std::runtime_error("Unknown algebra type in evalVar");
+        }
         hypotheses.hypotheticalValues[var] = bottomValue;
         
         // Get variable definition
@@ -530,7 +812,13 @@ public:
             }
             
             // Fallback (should not happen)
-            return {algebra.bottom(), std::set<Tree*>{}};
+            if (auto* semanticAlg = dynamic_cast<const SemanticAlgebra<T>*>(&algebra)) {
+                return {semanticAlg->bottom(), std::set<Tree*>{}};
+            } else if (auto* initialAlg = dynamic_cast<const InitialAlgebra<T>*>(&algebra)) {
+                return {initialAlg->var(), std::set<Tree*>{}};
+            } else {
+                throw std::runtime_error("Unknown algebra type in fixpoint fallback");
+            }
         } else {
             throw std::runtime_error("Fixpoint computation did not converge");
         }
@@ -540,7 +828,7 @@ public:
     template<typename T>
     bool iterate(const std::set<Tree*>& scc, std::map<Tree*, T>& definitiveMemo,
                  Hypotheses<T>& hypotheses, const Algebra<T>& algebra) const {
-        const int MAX_ITER = 100;  // Safety limit to avoid infinite loops
+        const int MAX_ITER = 10000;  // Safety limit to avoid infinite loops
         
         for (int iteration = 0; iteration < MAX_ITER; ++iteration) {
             // Store previous values for convergence check
@@ -573,9 +861,18 @@ public:
             bool allConverged = true;
             for (Tree* var : scc) {
                 if (previousValues.count(var) && newValues.count(var)) {
-                    if (!algebra.isEquivalent(previousValues[var], newValues[var])) {
-                        allConverged = false;
-                        break;
+                    // Use semantic convergence test instead of strict equality
+                    if (auto* semanticAlg = dynamic_cast<const SemanticAlgebra<T>*>(&algebra)) {
+                        if (!semanticAlg->isConverged(previousValues[var], newValues[var])) {
+                            allConverged = false;
+                            break;
+                        }
+                    } else {
+                        // Fallback to strict equality for non-semantic algebras
+                        if (previousValues[var] != newValues[var]) {
+                            allConverged = false;
+                            break;
+                        }
                     }
                 } else {
                     // First iteration or missing value
@@ -590,6 +887,124 @@ public:
         }
         
         return false;  // Did not converge within MAX_ITER iterations
+    }
+    
+    // Alpha-equivalence implementation
+    // Context for memoization and variable mapping
+    mutable AlphaEquivContext fAlphaContext;
+    
+public:
+    // Public API for alpha-equivalence
+    // alphaEquivDAG : 𝕋* × 𝕋* → 𝔹
+    bool alphaEquivalent(const std::shared_ptr<Tree>& t1, const std::shared_ptr<Tree>& t2) const {
+        fAlphaContext.clear();
+        return alphaEquivMemo(t1.get(), t2.get());
+    }
+    
+private:
+    // alphaEquivMemo : 𝕋* × 𝕋* × Memo × VarMap → 𝔹
+    // Core memoized comparison with DAG optimization
+    bool alphaEquivMemo(Tree* t1, Tree* t2) const {
+        // Optimisation cruciale : identité physique (hash-consing)
+        // case T₁* = T₂*: true
+        if (t1 == t2) {
+            return true;
+        }
+        
+        // Cache hit - évite recalcul  
+        // case (T₁*, T₂*) ∈ memo: memo[(T₁*, T₂*)]
+        auto key = std::make_pair(t1, t2);
+        auto it = fAlphaContext.memo.find(key);
+        if (it != fAlphaContext.memo.end()) {
+            return it->second;
+        }
+        
+        // Cache miss - calculer et mémoriser
+        // let result = alphaEquivCore(T₁*, T₂*, memo, varMap)
+        // let memo' = memo ∪ {(T₁*, T₂*) ↦ result, (T₂*, T₁*) ↦ result}
+        bool result = alphaEquivCore(t1, t2);
+        fAlphaContext.memo[key] = result;
+        fAlphaContext.memo[std::make_pair(t2, t1)] = result; // Symmetric
+        
+        return result;
+    }
+    
+    // alphaEquivCore : 𝕋* × 𝕋* × Memo × VarMap → 𝔹
+    // Core structural comparison logic
+    bool alphaEquivCore(Tree* t1, Tree* t2) const {
+        // case (type(T₁*), type(T₂*)) of
+        if (t1->getType() != t2->getType()) {
+            return false;
+        }
+        
+        switch (t1->getType()) {
+            // Constantes: (Num, Num) → value(T₁*) = value(T₂*)
+            case Tree::NodeType::Num:
+                return t1->getValue() == t2->getValue();
+            
+            // Opérations unaires: (Op, Op) → op(T₁*) = op(T₂*) ∧ recurse on children
+            case Tree::NodeType::Unary:
+                return t1->getUnaryOp() == t2->getUnaryOp() &&
+                       alphaEquivMemo(t1->getOperand().get(), t2->getOperand().get());
+            
+            // Opérations binaires: similar logic with both children
+            case Tree::NodeType::Binary:
+                return t1->getBinaryOp() == t2->getBinaryOp() &&
+                       alphaEquivMemo(t1->getLeft().get(), t2->getLeft().get()) &&
+                       alphaEquivMemo(t1->getRight().get(), t2->getRight().get());
+            
+            // Variables: handleVarsDAG(v₁*, v₂*, memo, varMap)
+            case Tree::NodeType::Var:
+                return handleVarsDAG(t1, t2);
+                
+            default:
+                return false;
+        }
+    }
+    
+    // handleVarsDAG : 𝕍* × 𝕍* × Memo × VarMap → 𝔹
+    // Handle variable mapping and definition comparison
+    bool handleVarsDAG(Tree* v1, Tree* v2) const {
+        // case (v₁* ∈ dom(varMap), v₂* ∈ ran(varMap)) of
+        auto it1 = fAlphaContext.varMapping.find(v1);
+        bool v1_mapped = (it1 != fAlphaContext.varMapping.end());
+        
+        // Check if v2 is in range of mapping
+        bool v2_in_range = false;
+        for (const auto& [k, v] : fAlphaContext.varMapping) {
+            if (v == v2) {
+                v2_in_range = true;
+                break;
+            }
+        }
+        
+        if (v1_mapped && v2_in_range) {
+            // Mapping existant - vérifier cohérence
+            // (true, true) → varMap[v₁*] = v₂*
+            return it1->second == v2;
+        } else if (!v1_mapped && !v2_in_range) {
+            // Nouveau mapping - étendre et comparer définitions
+            // (false, false) → let varMap' = varMap ∪ {v₁* ↦ v₂*}
+            //                   in alphaEquivMemo(definition(v₁*), definition(v₂*), memo, varMap')
+            fAlphaContext.varMapping[v1] = v2;
+            
+            auto def1 = v1->getDefinition();
+            auto def2 = v2->getDefinition();
+            
+            // Both must have definitions or both must not have definitions
+            if (!def1 && !def2) {
+                return true; // Both undefined variables
+            }
+            if (!def1 || !def2) {
+                return false; // Only one is undefined
+            }
+            
+            return alphaEquivMemo(def1.get(), def2.get());
+        } else {
+            // Mapping incohérent
+            // _ → false
+            return false;
+        }
     }
 };
 
