@@ -84,3 +84,5 @@ Testing/
 # Package managers
 conan/
 vcpkg/
+
+.obsidian/
